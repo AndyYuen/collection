@@ -1,0 +1,106 @@
+openapi: 3.0.0
+info:
+  title: Ballarat Refuse Collections
+  version: "1.0"
+  description: |
+    # Overview
+    
+    This API provides historical data about refuse (i.e. garbage) collections in the Ballarat city area.
+    
+    # Usage
+    
+    The API exposes a single read-only REST collection resource **'collections'**.
+    
+    ## Query parameters
+    
+    Queries _must_ be filtered by a `date` query paramter in YYYY-MM-DD format.
+    Queries may optionally be restricted to a paticular `suburb`.
+    `limit` defines the maximum number of records to return in a single query (default 100).
+    
+    ## Responses
+    
+    Responses are always in JSON format.
+
+paths:
+  /collections:
+    summary: The set of refuse collections in the Ballarat city area.
+    get:
+      summary: Query historical refuse collection information.
+      operationId: listCollections
+      tags: [Refuse Collections]
+      parameters: 
+        - name: date
+          description: Collection date to search for.
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: suburb
+          description: Collection suburb to search for.
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          description: Max records to return
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+      responses:
+        200:
+          description: List of matching refuse collection records.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RefuseCollectionList"
+
+components:
+  schemas:
+    RefuseCollection:
+      description: A refuse collection record.
+      type: object
+      properties:
+        id:
+          description: Unique ID of the collection.
+          type: integer
+          example: 2848
+        date:
+          description: Date of the collection. YYYY-MM-DD format.
+          type: string
+          format: date
+          example: "2018-11-01"
+        vehicle:
+          description: Unique key given to kerbside collection vehicles.
+          type: integer
+          format: int32
+          example: 3
+        wasteType: 
+          description: Factor variable depending on delivery location.
+          type: string
+          enum: ["Landfill", "Recycling", "Green Waste"]
+        suburb:
+          description: Collection suburb.
+          type: string
+          example: "MOUNT PLEASANT"
+        count:
+          description: Count of bin lifts (given by sensor on lifting arm).
+          type: integer
+          format: int32
+          example: 191
+        weight:
+          description: Weight of delivery in tons (=1000kg).
+          type: number
+          format: float
+          example: 11.08
+    RefuseCollectionList:
+      description: A list of refuse collection records.
+      type: object
+      properties:
+        records:
+          description: Matching refuse collection records.
+          type: array
+          items: 
+            $ref: "#/components/schemas/RefuseCollection"

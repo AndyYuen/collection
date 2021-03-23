@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="                  http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd                                http://camel.apache.org/schema/cxf  http://camel.apache.org/schema/cxf/camel-cxf.xsd                                      http://camel.apache.org/schema/spring  http://camel.apache.org/schema/spring/camel-spring.xsd">
+    <!-- You could also define a traditional camel context here -->
+    <bean class="com.redhat.collections.ExtractQueryParams" id="utilBean"/>
+    <sslContextParameters id="serverSSLParameters" xmlns="http://camel.apache.org/schema/spring">
+        <keyManagers keyPassword="{{ssl.keymanager.password}}">
+            <keyStore password="{{ssl.keystore..password}}" resource="{{ssl.keystore.location}}"/>
+        </keyManagers>
+    </sslContextParameters>
+    <bean
+        class="org.apache.camel.component.properties.PropertiesComponent" id="properties">
+        <property name="location" value="file:/app/config/app-config"/>
+    </bean>
+    <camelContext id="camelContext" xmlns="http://camel.apache.org/schema/spring">
+        <restConfiguration bindingMode="json" component="jetty"
+            port="8443" scheme="https">
+            <endpointProperty key="sslContextParameters" value="#serverSSLParameters"/>
+            <dataFormatProperty key="json.out.mustBeJAXBElement" value="true"/>
+            <dataFormatProperty key="prettyPrint" value="true"/>
+        </restConfiguration>
+        <rest id="rest-get" path="/">
+            <get id="get-collections"
+                outType="com.redhat.collections.model.RefuseCollection"
+                produces="application/json" uri="collections">
+                <description> Call 2 external REST services for enrichment"</description>
+                <to uri="direct:collections"/>
+            </get>
+        </rest>
+        <route id="collections" streamCache="true">
+            <!-- streamCache="true" -->
+            <from id="_from1" uri="direct:collections"/>
+            <bean id="setCollectParams" method="setCollectParams" ref="utilBean"/>
+            <to id="_to1" uri="https://data.gov.au:443/data/api/3/action/datastore_search?bridgeEndpoint=true"/>
+            <log id="_log2" message="collect: ${body}"/>
+            <bean id="setLandfillParams"
+                method="setLandfillParamsBasedOnCollectResult" ref="utilBean"/>
+            <!-- 
+            <log id="_log5" message="${body}"/>
+-->
+            <to id="_to2" uri="https://data.gov.au:443/data/api/3/action/datastore_search?bridgeEndpoint=true"/>
+            <log id="_log4" message="landfill: ${body}"/>
+            <bean id="enrichResult" method="enrichResult" ref="utilBean"/>
+        </route>
+    </camelContext>
+</beans>
